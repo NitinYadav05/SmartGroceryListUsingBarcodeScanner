@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="style.css" />
+  <title>Features | GrocerySnap</title>
+</head>
+<body>
+  <header>
+    <a href="#" class="logo"><u>GrocerySnap</u></a>
+    <nav>
+      <a href="home.html">Home</a>
+      <a href="features.html" class="active">Features</a>
+      <a href="index.html" id="scanner-nav">Scanner</a>
+      <a href="login.html" id="login-link">Login</a>
+      <a href="#" id="logout-btn" style="display: none;">Logout</a> 
+    </nav>
+  </header>
+
+  <section class="home" style="margin-top: 80px;">
+    <div class="home-content" style="max-width: 900px; margin: auto;">
+      <h1 style="text-align: center;">Key Features of <span>GrocerySnap</span></h1>
+      <ul style="margin-top: 2rem; font-size: 1.8rem; color: #fff; line-height: 2.8rem;">
+        <li><strong>Barcode Scanner:</strong> Instantly scan products to add them to your grocery list.</li>
+        <li><strong>Real-Time List:</strong> Items show up immediately after scanning, no manual entry needed.</li>
+        <li><strong>Quantity Control:</strong> Easily increase or decrease quantities of each item.</li>
+        <li><strong>Delete Items:</strong> Remove unnecessary items with one click.</li>
+        <li><strong>User Authentication:</strong> Keep your data secure with login and signup functionality using Firebase.</li>
+        <li><strong>Mobile Responsive:</strong> Works great on both desktop and mobile screens.</li>
+      </ul>
+      <div style="text-align: center; margin-top: 3rem;">
+        <a href="#" class="btn" id="scan-btn">Start Scanning</a>
+      </div>
+    </div>
+  </section>
+
+  <script type="module">
+    import { auth } from './firebase-config.js';
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+
+    const scanBtn = document.getElementById('scan-btn');
+    const scannerNav = document.getElementById('scanner-nav');
+    const logoutBtn = document.getElementById('logout-btn');
+    const loginLink = document.getElementById('login-link');
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Logged in
+        logoutBtn.style.display = "inline-block";
+        loginLink.style.display = "none";
+        scanBtn.href = "index.html";
+        scannerNav.href = "index.html";
+
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await signOut(auth);
+            alert("Logged out successfully.");
+            window.location.href = "login.html";
+          } catch (error) {
+            console.error("Logout failed:", error);
+            alert("Logout failed. Please try again.");
+          }
+        });
+
+      } else {
+        // Not logged in
+        logoutBtn.style.display = "none";
+        loginLink.style.display = "inline-block";
+
+        scanBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          alert("Please log in to access the scanner.");
+          window.location.href = "login.html";
+        });
+
+        scannerNav.addEventListener("click", (e) => {
+          e.preventDefault();
+          alert("Please log in to access the scanner.");
+          window.location.href = "login.html";
+        });
+      }
+    });
+  </script>
+</body>
+</html>

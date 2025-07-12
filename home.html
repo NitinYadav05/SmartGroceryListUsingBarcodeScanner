@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="style.css" />
+  <title>GrocerySnap</title>
+</head>
+<body>
+
+
+  <header>
+    <a href="#" class="logo"><u>GrocerySnap</u></a>
+    <nav>
+      <a href="#" class="active">Home</a>
+      <a href="login.html">Login</a>
+      <a href="feature.html">Features</a>
+      <a href="index.html" id="scanner-nav">Scanner</a>
+      <a href="#" id="logout-btn" style="display: none;">Logout</a>
+    </nav>
+  </header>
+
+  <section class="home">
+    <div class="home-img">
+      <img src="images/Grocery.png" alt="Profile photo" />
+    </div>
+    <div class="home-content">
+      <h1>Welcome To <span>GrocerySnap</span></h1>
+      <h3 class="typing-text">Scan your <span></span></h3>
+      <p>
+        Welcome to SmartGrocery — your ultimate grocery shopping companion!
+      </p>
+      <div class="social-icons">
+        <a href="https://www.linkedin.com/in/nitinyadav05"><i class="fa-brands fa-linkedin"></i></a>
+        <a href="https://github.com/NitinYadav05"><i class="fa-brands fa-github"></i></a>
+        <a href="#"><i class="fa-brands fa-instagram"></i></a>
+      </div>
+      <a href="index.html" class="btn" id="scan-btn">Scan Here</a>
+    </div>
+  </section>
+
+
+
+  <section style="padding: 1rem 2rem;">
+    <h2 style="text-align:center; margin-top: 30px; color: #4CAF50;">Your Scanned Items</h2>
+    <div style="padding: 1rem 2rem; text-align: center;">
+    <button id="download-pdf" style="padding: 10px 20px; margin: 10px; background-color: #25D366; color: white; border: none; border-radius: 4px;">Download as PDF</button>
+    <button id="whatsapp-share-btn" style="padding: 10px 20px; margin: 10px; background-color: #25D366; color: white; border: none; border-radius: 4px;">Share on WhatsApp</button>
+    <textarea id="share-output" style="margin-top: 10px; width: 80%; height: 100px; display: none;"></textarea>
+   </div>
+
+
+    <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+      <select id="category-filter">
+        <option value="all">All Categories</option>
+      </select>
+      <button id="clear-all-btn" style="background-color: #f44336; color: white; padding: 6px 12px; border: none; border-radius: 4px;">Clear All</button>
+    </div>
+
+    <div id="scanned-items">
+      <p id="loading-msg">Loading your items...</p>
+    </div>
+  </section>
+
+  <script type="module">
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+    import {
+      collection,
+      query,
+      where,
+      getDocs,
+      updateDoc,
+      deleteDoc,
+      doc,
+      getDoc
+    } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+    import { db } from './firebase-config.js';
+
+    const auth = getAuth();
+    const listContainer = document.getElementById("scanned-items");
+    const loadingMsg = document.getElementById("loading-msg");
+    const categoryFilter = document.getElementById("category-filter");
+    const clearAllBtn = document.getElementById("clear-all-btn");
+
+    let allItems = [];
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        loadingMsg.textContent = "Please log in to view your scanned grocery list.";
+        return;
+      }
+
+      try {
+        const q = query(collection(db, "grocery-items"), where("uid", "==", user.uid));
+        const querySnapshot = await getDocs(q);
+
+        const scannedItems = {};
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const id = docSnap.id;
+          if (!scannedItems[data.barcode]) {
+            scannedItems[data.barcode] = { ...data, quantity: 0, docIds: [], bought: data.bought || false };
+          }
+          scannedItems[data.barcode].quantity += data.quantity;
+          scannedItems[data.barcode].docIds.push(id);
+        });
+
+        allItems = Object.values(scannedItems);
+        populateCategoryFilter(allItems);
+        renderItems(allItems);
+
+        clearAllBtn.onclick = async () => {
+          if (confirm("Are you sure you want to delete all items?")) {
+            for (const item of allItems) {
+              for (const docId of item.docIds) {
+                await deleteDoc(doc(db, "grocery-items", docId));
+              }
+            }
+            alert("All items cleared.");
+            location.reload();
+          }
+        };
+
+        categoryFilter.onchange = () => {
+          const selected = categoryFilter.value;
+          if (selected === "all") {
+            renderItems(allItems);
+          } else {
+            const filtered = allItems.filter(item => item.category === selected);
+            renderItems(filtered);
+          }
+        };
+
+      } catch (error) {
+        listContainer.innerHTML = "<p>Failed to load items. Please try again later.</p>";
+        console.error("Error fetching items:", error);
+      }
+    });
+
+    function populateCategoryFilter(items) {
+      const categories = [...new Set(items.map(item => item.category))];
+      categories.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        categoryFilter.appendChild(opt);
+      });
+    }
+
+   function renderItems(items) {
+  listContainer.innerHTML = "";
+  if (items.length === 0) {
+    listContainer.innerHTML = "<p>No scanned items found.</p>";
+    return;
+  }
+
+  for (const item of items) {
+    let { name, category, quantity, docIds, bought } = item;
+    const isUncategorized = name.toLowerCase() === "unknown" || category.toLowerCase() === "uncategorized";
+
+    const itemDiv = document.createElement("div");
+    itemDiv.style.margin = "0.5rem 0";
+    itemDiv.style.padding = "0.75rem";
+    itemDiv.style.border = "1px solid #ccc";
+    itemDiv.style.borderRadius = "5px";
+    itemDiv.style.background = bought ? "#e0ffe0" : "#ffffff";
+    itemDiv.style.boxShadow = "0 2px 5px rgba(0,0,0,0.05)";
+    itemDiv.style.display = "flex";
+    itemDiv.style.justifyContent = "space-between";
+    itemDiv.style.alignItems = "center";
+
+    const nameContent = isUncategorized
+      ? `<input type="text" value="${name}" onchange="renameItem('${docIds[0]}', this.value)" style="font-size: 1.1rem; padding: 2px 5px;" />`
+      : `<strong>${name}</strong>`;
+
+    itemDiv.innerHTML = `
+      <span style="color: black; font-size: 1.25rem;">
+        ${nameContent} <span style="color: gray;">(${category})</span>
+      </span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <label><input type="checkbox" ${bought ? "checked" : ""} onchange="toggleBought('${docIds[0]}', this.checked)"> <span style="color :black;font-size:1.25rem;">Bought</span></label>
+        <button onclick="updateQuantity(this, '${docIds[0]}', -1)">−</button>
+        <span class="quantity" style="color: ${quantity < 2 ? 'red' : 'black'}; padding: 5px 12px; font-size: 1.2rem;">${quantity}</span>
+        <button onclick="updateQuantity(this, '${docIds[0]}', 1)">+</button>
+        <button style="color: red;" onclick="deleteItem('${docIds[0]}')">Delete</button>
+      </div>
+    `;
+
+    listContainer.appendChild(itemDiv);
+  }
+}
+window.renameItem = async function (docId, newName) {
+  try {
+    if (!newName.trim()) {
+      alert("Item name cannot be empty.");
+      return;
+    }
+
+    const itemRef = doc(db, "grocery-items", docId);
+    await updateDoc(itemRef, { name: newName });
+    // Refresh to re-render updated name
+    location.reload();
+  } catch (e) {
+    console.error("Failed to rename item:", e);
+    alert("Failed to update item name.");
+  }
+};
+
+    window.updateQuantity = async function (btn, docId, change) {
+      const quantitySpan = btn.parentElement.querySelector(".quantity");
+      let current = parseInt(quantitySpan.textContent);
+      let updated = current + change;
+      if (updated < 1) return;
+      quantitySpan.textContent = updated;
+      quantitySpan.style.color = updated < 2 ? 'red' : 'black';
+
+      try {
+        const itemRef = doc(db, "grocery-items", docId);
+        const itemSnap = await getDoc(itemRef);
+        const itemData = itemSnap.data();
+        const barcode = itemData.barcode;
+        const uid = itemData.uid;
+
+        const q = query(collection(db, "grocery-items"), where("barcode", "==", barcode), where("uid", "==", uid));
+        const matchingItems = await getDocs(q);
+
+        const perItemQty = Math.ceil(updated / matchingItems.size);
+        let totalUpdated = 0;
+        for (const item of matchingItems.docs) {
+          if (totalUpdated + perItemQty > updated) break;
+          const remaining = updated - totalUpdated;
+          const newQty = Math.min(perItemQty, remaining);
+          await updateDoc(item.ref, { quantity: newQty });
+          totalUpdated += newQty;
+        }
+      } catch (e) {
+        console.error("Error updating quantity:", e);
+        alert("Could not update quantity.");
+      }
+    };
+
+    window.deleteItem = async function (docId) {
+      try {
+        await deleteDoc(doc(db, "grocery-items", docId));
+        alert("Item deleted successfully.");
+        location.reload();
+      } catch (e) {
+        console.error("Error deleting item:", e);
+        alert("Failed to delete item.");
+      }
+    };
+
+    window.toggleBought = async function (docId, isChecked) {
+      try {
+        const itemRef = doc(db, "grocery-items", docId);
+        const itemSnap = await getDoc(itemRef);
+        const data = itemSnap.data();
+        const q = query(collection(db, "grocery-items"),
+          where("barcode", "==", data.barcode),
+          where("uid", "==", data.uid)
+        );
+        const docs = await getDocs(q);
+        for (const d of docs.docs) {
+          await updateDoc(d.ref, { bought: isChecked });
+        }
+        location.reload();
+      } catch (err) {
+        console.error("Failed to update bought state:", err);
+      }
+    };
+  </script>
+
+   
+   <script>
+    const whatsappBtn = document.getElementById("whatsapp-share-btn");
+    const shareOutput = document.getElementById("share-output");
+
+     document.getElementById("download-pdf").addEventListener("click", () => {
+    const items = document.querySelectorAll("#scanned-items > div");
+    if (!items.length) return alert("No items to export!");
+
+    let content = "🛒 GrocerySnap - Scanned Items List\n\n";
+    
+    items.forEach(item => {
+      const name = item.querySelector("strong")?.innerText || "Unnamed";
+      const category = item.querySelector("span span")?.innerText.replace(/[()]/g, '') || "Unknown";
+      const qty = item.querySelector(".quantity")?.innerText || "0";
+      const bought = item.querySelector("input[type='checkbox']")?.checked ? "✔ Bought" : "❌ Not Bought";
+      content += `• ${name} (${category}) - Qty: ${qty} - ${bought}\n`;
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const today = new Date().toLocaleString();
+    doc.text(`GrocerySnap List\n\n${today}\n\n${content}`, 10, 10);
+    doc.save("GrocerySnap_List.pdf");
+  });
+
+    whatsappBtn.addEventListener("click", () => {
+      const items = document.querySelectorAll("#scanned-items > div");
+      if (items.length === 0) {
+        alert("No items to share.");
+        return;
+      }
+      let list = "🛒 *My Grocery List*:%0A%0A";
+      items.forEach((div, i) => {
+        const name = div.querySelector("strong").textContent;
+        const qty = div.querySelector(".quantity").textContent;
+        list += `${i + 1}. ${name} - Qty: ${qty}%0A`;
+      });
+      const url = `https://wa.me/?text=${encodeURI(list)}`;
+      window.open(url, "_blank");
+    });
+  </script>
+
+  <!-- Auth UI control -->
+  <script type="module">
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+
+    const auth = getAuth();
+    const logoutBtn = document.getElementById('logout-btn');
+    const loginLink = document.querySelector('a[href="login.html"]');
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        logoutBtn.style.display = "inline-block";
+        if (loginLink) loginLink.style.display = "none";
+
+        logoutBtn.addEventListener('click', async () => {
+          try {
+            await signOut(auth);
+            alert("Logged out successfully.");
+            window.location.href = "login.html";
+          } catch (error) {
+            console.error("Logout failed:", error);
+            alert("Logout failed. Please try again.");
+          }
+        });
+      } else {
+        logoutBtn.style.display = "none";
+        if (loginLink) loginLink.style.display = "inline-block";
+      }
+    });
+  </script>
+</body>
+</html>

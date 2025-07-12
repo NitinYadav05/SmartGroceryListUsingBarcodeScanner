@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Grocery List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+  <link rel="stylesheet" href="scanner.css">
+</head>
+<body class="bg-black">
+  <header>
+    <a href="#" class="logo"><u>GrocerySnap</u></a>
+    <nav>
+      <a href="home.html" class="active">Home</a>
+      <a href="feature.html">Features</a>
+      <a href="index.html" id="scanner-nav">Scanner</a>
+    </nav>
+  </header>
+
+  <main class="scanner-wrapper">
+    <h1 class="text-4xl font-bold mb-4 text-white text-center">Scan Your Barcode Here:
+    </h1>
+
+    <div id="scanner" class="scanner"></div>
+
+    <h2 class="text-2xl font-semibold mt-6 mb-2 text-white text-center">Scanned Items:</h2>
+    <div id="scanned-items" class="scanned-items"></div>
+  </main>
+
+  <!-- Scripts -->
+  <script type="module" src="./firebase-config.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+
+</html>
