@@ -12,15 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
 
 //  Firebase Configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCBzKQbvlVo50pMAD8NW6ZxKipRvlCS9OE",
-  authDomain: "smart-grocery-43e76.firebaseapp.com",
-  projectId: "smart-grocery-43e76",
-  storageBucket: "smart-grocery-43e76.appspot.com",
-  messagingSenderId: "537110102012",
-  appId: "1:537110102012:web:72fe45f00c5e802f5ffc79",
-  measurementId: "G-0ELJPVT5JQ"
-};
+
 
 //  Initialize Firebase App
 const app = initializeApp(firebaseConfig);
